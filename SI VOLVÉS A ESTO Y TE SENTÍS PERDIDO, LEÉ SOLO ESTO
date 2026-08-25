@@ -1,0 +1,62 @@
+## SI VOLVÉS A ESTO Y TE SENTÍS PERDIDO, LEÉ SOLO ESTO
+
+El plan de cierre YA EXISTE, completo, en `PROTOCOLO_CIERRE_TEKTRON_v8.md`. No se inventa uno nuevo, nunca. Su orden estricto, textual:
+
+```
+−1 Inventario → 0 Conectividad → 0b Poblar → 1 Probes MCC
+→ 2 Curación (reetiquetar) → 3 Índice+manifest
+→ 4 Gate de capacidad (G1–G10) → 5 Interfaz honesta → 6 Acta
+```
+
+"No saltar." Si en algún momento aparece una etiqueta de fase que no es −1,0,0b,1,2,3,4,5,6 — es inventada, se descarta.
+
+**Aviso importante, ya documentado en el propio repo:** `PARADA_PROTOCOLO_HONESTO.md` y `REPLANTAMIENTO_CIERRE_RIGOR.md` registran que esto YA pasó antes — un agente pidiendo más comandos/inventario en vez de ejecutar el plan existente. Si un agente futuro (o vos) siente que "esto no termina" o que "seguimos organizando", la causa más probable es esa, no que el trabajo sea infinito. Releer esos dos archivos ante la duda.
+
+## Definición de CERRADO (tabla C1–C7, textual de v8)
+
+| # | Condición | Artefacto exacto exigido |
+|---|-----------|---------------------------|
+| C1 | Conectividad corpus↔índice | `CORPUS_CONNECTIVITY_REPORT.json` firmado |
+| C2 | Probes MCC hits>0 | `mcc_probe_hits.json` |
+| C3 | Densidad dual por ancla | `dual_density_por_ancla.tsv` |
+| C4 | Canales calibrados y separables | `calibracion_n0_v8.json` con margen > 0 |
+| C5 | Gate de capacidad aprobado | `resultados_gate_v8.json` |
+| C6 | Backend emite Árbol/MONO/N0/INDEX_GAP con MCC+SHA | smoke tests `/analizar` (= la batería G1–G10, no un chequeo aparte) |
+| C7 | Acta con hashes reales | `ACTA_CIERRE_TEKTRON_v8.json` |
+
+## ESTADO REAL contra esa tabla (2026-08-20, verificado contra el texto completo de v8, no contra fragmentos)
+
+- **Fase −1/0/0b/1 (C1, C2):** sustancia verificada (bridge conecta, probes MCC responden). **Falta:** el archivo `CORPUS_CONNECTIVITY_REPORT.json` formal con ese nombre exacto — no requiere investigación nueva, es transcribir lo ya sabido.
+- **C3:** `dual_density_por_ancla.tsv` emitido, pero por proxy `canon_id` — el mecanismo formal `ancla_id` de v8 (Fase 0b) sigue 0% poblado. Documentado, no resuelto, no bloquea Fase 4.
+- **C4:** N0 separable confirmado (`calibrar_n0.py`: margen 0.7187, umbral 0.3594). **Falta:** escribir el archivo con el nombre exacto `calibracion_n0_v8.json` (el que existe se llama distinto).
+- **Fase 2 (curación/reetiquetado) — A UN PASO DE CERRAR:** 482 chunks corregidos SIT→HEG en dos rondas (Ley Minera 37, seriec_245_esp 153, T-622-16 209, seriec_172_esp 79, Sentencia_Corte_Constitucional_T 4), verificado en producción, `sit=8526 heg=4786 tec=138`. Único pendiente: la salida de `tektron_auditar_instrumento_legal_v2.py` (ya entregado, corriendo) — el último patrón de mislabel sin barrer sistemáticamente. Cuando confirme (con o sin candidatos reales), Fase 2 cierra.
+- **Fase 3:** el rebuild de FAISS+BM25 ya ocurrió (parte de cada reconcile). **Falta:** el archivo formal `manifest_index_l1.json` con SHA-256 de `chunks.jsonl` + `faiss.idx` — mecánico, un script corto.
+- **Fase 4 (C5+C6) — LO ÚNICO QUE FALTA DE VERDAD:** §4.2 (separabilidad N0) resuelto. **§4.3, la batería G1–G10 completa contra `/analizar`, NO se corrió todavía — esto es lo próximo, y es lo mismo que "cerrar C6", no dos pasos separados.** Produce `resultados_gate_v8.json` (C5) y de paso confirma C6.
+- **Fase 5:** el `modo` (DUAL/MONO_SIT/N0/etc.) ya sale correcto en cada prueba hecha hoy. Se termina de confirmar solo al correr Fase 4.
+- **Fase 6 (C7):** no iniciada. Esquema exacto ya en `PROTOCOLO_CIERRE_TEKTRON_v8.md` sección FASE 6. Último paso.
+
+## Próximo paso único, sin alternativas
+
+1. Confirmar salida de `tektron_auditar_instrumento_legal_v2.py` → cerrar Fase 2 (corregir si hay candidatos reales, mismo método de siempre).
+2. Armar y correr la batería G1–G10 completa contra `/analizar` → `resultados_gate_v8.json` → cierra C5 y C6 juntos.
+3. Completar el papeleo formal menor (3 archivos JSON con nombre exacto, contenido ya conocido — no investigación).
+4. Armar `ACTA_CIERRE_TEKTRON_v8.json` con el esquema de FASE 6 → **TEKTRON cerrado.**
+
+No hay una Fase 5 de "más auditoría", no hay una "ronda 3" de mislabels, no hay nada más que inventar. Esto es todo lo que queda.
+
+## Artefactos generados el 2026-08-20 (en `/mnt/tektron/workspace/` del Jetson)
+
+`mcc_probe_hits.json`, `dual_density_por_ancla.tsv`, `gate_anchors_probe.json`, `tektron_verificar_seriec245.py`, `tektron_relabel_mislabel_confirmado.py`, `tektron_auditar_sentencias_tribunales.py`, `tektron_relabel_ronda2.py`, `tektron_auditar_instrumento_legal_v2.py`, `ronda2_reconcile.log`.
+
+## Estructura real del repo
+
+- Rama operativa: `cursor/analisis-cierre-tektron-6f65`. Tiene v8, `PARADA_PROTOCOLO_HONESTO.md`, `REPLANTAMIENTO_CIERRE_RIGOR.md` (ambos releer si vuelve la sensación de bucle), los 15 papers del andamiaje, y los scripts operativos incluido `tektron_reconcile_index_l1.py` en `/mnt/tektron/workspace/`.
+- `tektron-bridge.service` (systemd): estaba activo hoy (no "failed permanente" como se anotó en una versión anterior de este doc). Se mató al reiniciar por nohup. Sin decidir si se vuelve a systemd — no urgente.
+
+## Hallazgo histórico (confirmado): bug en `ids_*.npy`
+
+`tektron_reconcile_index_l1.py` y `tektron_rebuild_faiss_from_chunks.py` no escribían `ids_sit.npy/ids_heg.npy/ids_tec.npy` — causa raíz del crash-loop original. Corregido, verificado contra producción repetidas veces el 2026-08-20 (última corrida: `sit=8526 heg=4786`).
+
+## Estado del andamiaje MCC
+
+Los 15 papers (`corpus/andamiaje_propio/zenodo/`) completos con hash SHA-256 en `MANIFEST.tsv`, indexados. Pendientes de archivar en Zenodo: DOI 18652576 y 20404028 — no bloquea el cierre.
