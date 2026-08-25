@@ -145,6 +145,73 @@ def polo_norm(raw: Any) -> str:
     return s or "?"
 
 
+QUERY_FIELD_KEYS = (
+    "query",
+    "pregunta",
+    "mensaje",
+    "text",
+    "message",
+    "prompt",
+    "q",
+    "consulta",
+    "input",
+)
+
+
+def fields_from_422(body: Any) -> list[str]:
+    """FastAPI 422: loc=['body', '<campo>'] — el contrato está en el error."""
+    fields: list[str] = []
+    if not isinstance(body, dict):
+        return fields
+    detail = body.get("detail")
+    if isinstance(detail, list):
+        for item in detail:
+            if not isinstance(item, dict):
+                continue
+            loc = item.get("loc") or []
+            if isinstance(loc, list) and len(loc) >= 2 and str(loc[0]) == "body":
+                fields.append(str(loc[-1]))
+    return fields
+
+
+def ping_payloads(query: str) -> list[dict[str, Any]]:
+    return [
+        {"query": query},
+        {"query": query, "modo": "soberano"},
+        {"pregunta": query},
+        {"mensaje": query},
+        {"text": query},
+        {"message": query},
+        {"prompt": query},
+        {"consulta": query},
+        {"q": query},
+        {"input": query},
+    ]
+
+
+def rank_endpoint(url: str) -> int:
+    u = url.lower()
+    if "/analizar" in u:
+        return 0
+    if "/chat" in u:
+        return 1
+    if "/retrieve" in u:
+        return 2
+    return 3
+
+
+def paths_from_openapi(spec: dict[str, Any], base: str) -> list[str]:
+    urls: list[str] = []
+    for path, ops in (spec.get("paths") or {}).items():
+        if not isinstance(ops, dict):
+            continue
+        if "post" not in {k.lower() for k in ops}:
+            continue
+        urls.append(base.rstrip("/") + (path if path.startswith("/") else "/" + path))
+    urls.sort(key=rank_endpoint)
+    return urls
+
+
 def http_json(url: str, payload: dict[str, Any] | None, timeout: int) -> tuple[int, Any]:
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     req = Request(url, data=data, method="GET" if payload is None else "POST")
@@ -304,41 +371,136 @@ def extract(data: Any) -> dict[str, Any]:
 
 
 def discover_contract(bridge: str, backend: str, timeout: int) -> dict[str, Any]:
-    """Prueba endpoints y payloads habituales. El desconocimiento del contrato no bloquea."""
-    candidates = []
-    for base in (backend, bridge):
-        if not base:
-            continue
-        candidates.extend(
-            [
-                (f"{base}/analizar", {"query": "ping tektron gate", "modo": "soberano"}),
-                (f"{base}/analizar", {"pregunta": "ping tektron gate"}),
-                (f"{base}/chat", {"query": "ping tektron gate"}),
-                (f"{base}/chat", {"mensaje": "ping tektron gate"}),
-                (f"{base}/retrieve", {"query": "ping tektron gate"}),
-            ]
-        )
-    health = {}
-    for base in (backend, bridge):
-        if not base:
-            continue
+    """Descubre el contrato real. 422 y timeout no significan 'no existe'."""
+    ping = "ping tektron gate"
+    bases: list[str] = []
+    for b in (backend, bridge):
+        if b and b not in bases:
+            bases.append(b.rstrip("/"))
+
+    health: dict[str, Any] = {}
+    reachable: list[str] = []
+    openapi_by_base: dict[str, Any] = {}
+    for base in bases:
         code, body = http_json(f"{base}/health", None, timeout=min(timeout, 10))
         health[base] = {"http": code, "body": body}
+        refused = isinstance(body, dict) and "Connection refused" in str(body.get("error") or "")
+        if refused:
+            continue
+        reachable.append(base)
+        oc, ob = http_json(f"{base}/openapi.json", None, timeout=min(timeout, 10))
+        if oc == 200 and isinstance(ob, dict) and ob.get("paths"):
+            openapi_by_base[base] = {
+                "http": oc,
+                "paths": sorted(ob["paths"].keys()),
+                "post": paths_from_openapi(ob, base),
+            }
 
-    probed = []
+    urls: list[str] = []
+    for base in reachable:
+        posted = (openapi_by_base.get(base) or {}).get("post") or []
+        fallback = [
+            f"{base}/analizar",
+            f"{base}/chat",
+            f"{base}/retrieve",
+        ]
+        for u in list(posted) + fallback:
+            if u not in urls:
+                urls.append(u)
+    urls.sort(key=rank_endpoint)
+
+    probed: list[dict[str, Any]] = []
     chosen = None
-    for url, payload in candidates:
-        code, body = http_json(url, payload, timeout=min(timeout, 20))
+    post_timeout = max(timeout, 90)
+
+    def try_one(url: str, payload: dict[str, Any], to: int) -> dict[str, Any]:
+        code, body = http_json(url, payload, timeout=to)
         entry = {
             "url": url,
             "payload_keys": sorted(payload.keys()),
             "http": code,
             "ok": 200 <= int(code) < 300 and isinstance(body, dict),
+            "required_from_422": fields_from_422(body) if int(code) == 422 else [],
+            "timeout": False,
         }
+        err = str((body or {}).get("error") if isinstance(body, dict) else body).lower()
+        entry["timeout"] = int(code) == 0 and "refused" not in err and (
+            "timed out" in err or "timeout" in err or "time out" in err
+        )
+        if isinstance(body, dict) and entry["ok"]:
+            entry["sample_keys"] = sorted(body.keys())
+        elif int(code) == 422 and isinstance(body, dict):
+            entry["detail_head"] = str(body.get("detail"))[:400]
         probed.append(entry)
-        if entry["ok"] and chosen is None:
-            chosen = {"url": url, "payload_template": payload, "sample_keys": sorted(body.keys()) if isinstance(body, dict) else []}
-    return {"health": health, "probes": probed, "chosen": chosen}
+        return {"code": code, "body": body, "entry": entry}
+
+    for url in urls:
+        if chosen:
+            break
+        timeout_candidate = None
+        for payload in ping_payloads(ping):
+            result = try_one(url, payload, post_timeout)
+            if result["code"] == 404:
+                break
+            if result["entry"]["ok"]:
+                chosen = {
+                    "url": url,
+                    "payload_template": payload,
+                    "sample_keys": result["entry"].get("sample_keys") or [],
+                    "via": "2xx",
+                }
+                break
+            if result["entry"].get("timeout") and any(k in payload for k in QUERY_FIELD_KEYS):
+                timeout_candidate = payload
+                break
+            needed = result["entry"].get("required_from_422") or []
+            if result["code"] == 422 and needed:
+                retry_payload = {}
+                for f in needed:
+                    retry_payload[f] = "soberano" if f == "modo" else ping
+                if not any(k in retry_payload for k in QUERY_FIELD_KEYS):
+                    retry_payload["query"] = ping
+                retry = try_one(url, retry_payload, post_timeout)
+                if retry["entry"]["ok"]:
+                    chosen = {
+                        "url": url,
+                        "payload_template": retry_payload,
+                        "sample_keys": retry["entry"].get("sample_keys") or [],
+                        "via": "422-retry",
+                    }
+                    break
+                if retry["entry"].get("timeout"):
+                    timeout_candidate = retry_payload
+        if chosen:
+            break
+        if timeout_candidate:
+            chosen = {
+                "url": url,
+                "payload_template": timeout_candidate,
+                "sample_keys": [],
+                "via": "timeout-after-live-endpoint",
+                "nota": "El POST existe pero el ping al LLM superó el timeout de descubrimiento. El Gate usará --timeout completo.",
+            }
+            break
+
+    nota = []
+    if backend.rstrip("/") not in reachable:
+        nota.append("backend :8001 no está escuchando (connection refused). No es fallo de J ni de corpus.")
+    if any(p.get("http") == 422 for p in probed):
+        nota.append("Hay POST vivo que respondió 422: el endpoint existe; el payload era el incorrecto.")
+    if any(p.get("timeout") for p in probed):
+        nota.append("Hubo timeout: /chat o /retrieve probablemente pegó al LLM. No significa que la ruta no exista.")
+    if chosen is None:
+        nota.append("chosen=null: inspeccionar openapi.json del bridge y el 422. No curar.")
+
+    return {
+        "health": health,
+        "reachable": reachable,
+        "openapi": {k: {"paths": v.get("paths")} for k, v in openapi_by_base.items()},
+        "probes": probed,
+        "chosen": chosen,
+        "nota": nota,
+    }
 
 
 def call_query(contract: dict[str, Any], query: str, timeout: int) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -347,9 +509,9 @@ def call_query(contract: dict[str, Any], query: str, timeout: int) -> tuple[dict
         return {"error": "sin contrato HTTP", "http": 0}, extract({})
     payload = dict(chosen["payload_template"])
     for k in list(payload.keys()):
-        if k in {"query", "pregunta", "mensaje", "text", "q"}:
+        if k in QUERY_FIELD_KEYS:
             payload[k] = query
-    if not any(k in payload for k in ("query", "pregunta", "mensaje", "text", "q")):
+    if not any(k in payload for k in QUERY_FIELD_KEYS):
         payload["query"] = query
     code, body = http_json(chosen["url"], payload, timeout=timeout)
     meta = {"http": code, "url": chosen["url"], "payload": payload}
@@ -683,11 +845,15 @@ def main() -> int:
             "proyecto": "TEKTRON v8.0",
             "fecha": datetime.now(timezone.utc).isoformat(),
             "status": "FAIL",
-            "error": "No se encontró /analizar, /chat ni /retrieve vivos. El Gate no se inventa.",
+            "error": "No se fijó un contrato HTTP usable (chosen=null).",
             "contrato_detectado": contract,
             "J": 0,
             "bottleneck": ["contrato_http"],
-            "siguiente": "Levantar bridge :8000 y backend :8001. Volver a correr este script. No curar.",
+            "nota": contract.get("nota"),
+            "siguiente": (
+                "Esto no es J ni curación. :8001 caído no bloquea si :8000/chat o /retrieve viven. "
+                "Inspeccionar openapi.json y el 422; recopy del script si el descubridor viejo cortó a 20s. No curar."
+            ),
         }
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)

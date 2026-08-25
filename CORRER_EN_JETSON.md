@@ -51,13 +51,13 @@ curl -sS -m 10 http://127.0.0.1:8000/health ; echo
 curl -sS -m 10 http://127.0.0.1:8001/health ; echo
 ```
 
-- Si **ningún** puerto responde: levantá bridge/backend como ya lo hacés (`tektron_start_backend_y_probar.sh` o el systemd que esté activo). No midas contra un proceso muerto.
-- Si solo uno responde: seguí igual. El script prueba `:8001` y `:8000` y usa el que tenga `/analizar`, `/chat` o `/retrieve`.
-- Un `/health` 404 no es fallo: algunos servicios no exponen esa ruta. El paso 4 lo confirma.
+- Si **ningún** puerto responde: levantá el bridge (`:8000`). No midas contra un proceso muerto.
+- Si `:8000` está UP y `:8001` está caído: **seguí**. El L1 vivo es el bridge. `:8001` es el backend de análisis; no es prerrequisito para descubrir contrato. Un `/health` 404 no es fallo.
+- `chosen=null` con `:8000` UP no significa “no hay API”. Suele ser 422 (payload) o timeout de 20 s al pegarle al LLM. Ver paso 4R.
 
 ---
 
-## Paso 4 — Descubrir el contrato HTTP (30–60 s)
+## Paso 4 — Descubrir el contrato HTTP
 
 ```bash
 cd /mnt/tektron/workspace
@@ -65,13 +65,57 @@ cd /mnt/tektron/workspace
 /mnt/tektron/venv_tektron/bin/python3 gate_capacidad_g1_g10.py \
   --base-bridge http://127.0.0.1:8000 \
   --base-backend http://127.0.0.1:8001 \
+  --timeout 120 \
   --dry-discover
 ```
 
-Buscá en la salida `"chosen": { "url": ... }`.
+Buscá `"chosen": { "url": ... }`.
 
-- Si `chosen` es `null` o falta: no hay `/analizar`, `/chat` ni `/retrieve` vivos. **Pará.** No curar. Levantá el backend y repetí este paso.
-- Si hay `url`: anotala (ej. `http://127.0.0.1:8001/analizar`) y pasá al paso 5.
+- Si hay `url`: anotala y pasá al paso 5.
+- Si `chosen` es `null` y `:8000` está UP: **no curar.** Paso 4R.
+
+---
+
+## Paso 4R — Si `chosen` salió `null` (caso real del 25 ago)
+
+Hechos de esa corrida: bridge `:8000` OK (`chunks=13450`, `n_sit=8526`, `n_heg=4786`); `:8001` connection refused; `/analizar` 404; `/chat`+`mensaje` **422** (la ruta existe); `/chat`+`query` http 0 (el ping al LLM superó 20 s). **J no se midió.** El bottleneck `contrato_http` no se arregla con curación.
+
+**4R.1** — Rutas reales del bridge:
+
+```bash
+curl -sS -m 10 http://127.0.0.1:8000/openapi.json \
+  | /mnt/tektron/venv_tektron/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print('\n'.join(sorted(d.get('paths',{}))))"
+```
+
+**4R.2** — Qué campo pide `/chat` (el 422 es el contrato):
+
+```bash
+curl -sS -m 15 -X POST http://127.0.0.1:8000/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"mensaje":"ping"}' ; echo
+```
+
+**4R.3** — Humo con el campo `query` y timeout largo (puede tardar 1–2 min; es el LLM):
+
+```bash
+curl -sS -m 120 -X POST http://127.0.0.1:8000/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"¿Qué es el MCC?"}' \
+  | /mnt/tektron/venv_tektron/bin/python3 -c "import json,sys; d=json.load(sys.stdin); print(sorted(d.keys()) if isinstance(d,dict) else type(d)); print(str(d)[:800])"
+```
+
+**4R.4** — Dónde está `:8001` (solo lectura; no lo adivines):
+
+```bash
+ss -ltnp | grep -E ':8080|:8001|:8000'
+ls -la /mnt/tektron/tektron_backend.py \
+       /mnt/tektron/workspace/tektron_start_backend_y_probar.sh 2>&1
+grep -n "8001\|analizar\|uvicorn\|FastAPI" /mnt/tektron/tektron_backend.py 2>/dev/null | head
+```
+
+No hace falta `:8001` para correr el Gate si `/chat` o `/retrieve` en `:8000` responden 2xx. Si 4R.3 devuelve JSON, recopy el script actualizado (descubre 422/timeout) y volvé al paso 4, después al 5.
+
+Pegá la salida de 4R.1–4R.3 si el descubridor sigue en `chosen=null`.
 
 ---
 
@@ -85,6 +129,7 @@ cd /mnt/tektron/workspace
 /mnt/tektron/venv_tektron/bin/python3 gate_capacidad_g1_g10.py \
   --base-bridge http://127.0.0.1:8000 \
   --base-backend http://127.0.0.1:8001 \
+  --timeout 120 \
   --out /mnt/tektron/workspace/resultados_gate_v8.json
 ```
 
