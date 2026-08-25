@@ -117,6 +117,7 @@ SYNTHESIS_PATTERNS = re.compile(
     re.I,
 )
 SHA_RE = re.compile(r"\b[a-fA-F0-9]{64}\b")
+HASH_LOOSE_RE = re.compile(r"\b[a-fA-F0-9]{16,64}\b")
 QUIJANO_RE = re.compile(r"quijano", re.I)
 
 HEG_LABELS = {"HEG", "HEGEMONICO", "HEGEMÓNICO", "HEGEMONICA", "HEGEMÓNICA"}
@@ -132,6 +133,9 @@ N0_KINDS = {
     "NO SÉ",
     "INDEX_EMPTY",
 }
+# Vocabulario del bridge L1 vivo (calibrar_n0 / /chat).
+MODO_ARBOL = {"ARBOL", "ÁRBOL", "DUAL", "ARBOL_ACTIVO"}
+MODO_MONO = {"UN_SOLO_LADO", "MONO", "MONO_SIT", "MONO_HEG", "LADO_UNICO"}
 
 
 def polo_norm(raw: Any) -> str:
@@ -261,22 +265,29 @@ def nonempty_text(v: Any) -> bool:
 
 
 def extract(data: Any) -> dict[str, Any]:
-    """Campo-defensivo: el contrato de /analizar no está versionado en git."""
+    """Mapea /analizar *y* el JSON real del bridge L1 (/chat)."""
+    empty = {
+        "modo": "?",
+        "tesis": "",
+        "antitesis": "",
+        "tension": "",
+        "preguntas": [],
+        "hashes": [],
+        "fuentes": [],
+        "polos": [],
+        "abstenido": False,
+        "index_gap": False,
+        "ausencia_polo": None,
+        "texto": str(data)[:4000],
+        "n_fuentes": 0,
+        "n_heg": 0,
+        "n_sit": 0,
+        "cobertura_dual": False,
+        "arbol_activo": False,
+        "respuesta": "",
+    }
     if not isinstance(data, dict):
-        return {
-            "modo": "?",
-            "tesis": "",
-            "antitesis": "",
-            "tension": "",
-            "preguntas": [],
-            "hashes": [],
-            "fuentes": [],
-            "polos": [],
-            "abstenido": False,
-            "index_gap": False,
-            "ausencia_polo": None,
-            "texto": str(data)[:4000],
-        }
+        return empty
 
     fuentes = as_list(
         first(
@@ -284,6 +295,7 @@ def extract(data: Any) -> dict[str, Any]:
             data.get("sources"),
             data.get("chunks"),
             data.get("evidencias"),
+            data.get("citas") if isinstance(data.get("citas"), list) else None,
             (data.get("evidencia_trazable") if isinstance(data.get("evidencia_trazable"), list) else None),
         )
     )
@@ -301,22 +313,22 @@ def extract(data: Any) -> dict[str, Any]:
                 )
             )
 
+    def collect_hashes(raw: Any) -> list[str]:
+        found: list[str] = []
+        if raw is None:
+            return found
+        text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        found.extend(h.lower() for h in SHA_RE.findall(text))
+        if not found:
+            found.extend(h.lower() for h in HASH_LOOSE_RE.findall(text))
+        return found
+
     hashes: list[str] = []
-    evid = data.get("evidencia_trazable")
-    if isinstance(evid, str):
-        hashes.extend(SHA_RE.findall(evid))
-    elif isinstance(evid, list):
-        for item in evid:
-            hashes.extend(SHA_RE.findall(str(item)))
-    for key in ("hashes", "sha256", "hash"):
-        hashes.extend(SHA_RE.findall(str(data.get(key) or "")))
+    for key in ("evidencia_trazable", "hashes", "sha256", "hash"):
+        hashes.extend(collect_hashes(data.get(key)))
     for f in fuentes:
         if isinstance(f, dict):
-            hashes.extend(
-                SHA_RE.findall(
-                    str(first(f.get("sha256"), f.get("hash"), f.get("id"), ""))
-                )
-            )
+            hashes.extend(collect_hashes(first(f.get("sha256"), f.get("hash"), f.get("id"), "")))
 
     modo = str(
         first(
@@ -330,6 +342,8 @@ def extract(data: Any) -> dict[str, Any]:
     ).upper()
     if isinstance(data.get("decision"), dict):
         modo = str(data["decision"].get("kind") or modo).upper()
+    if modo in {"UN_SOLO_LADO", "LADO_UNICO"}:
+        modo = "UN_SOLO_LADO"
 
     preguntas = as_list(
         first(
@@ -339,34 +353,70 @@ def extract(data: Any) -> dict[str, Any]:
             data.get("critical_questions"),
         )
     )
-    texto = json.dumps(data, ensure_ascii=False)[:8000]
-    index_gap = bool(
-        data.get("index_gap")
-        or modo in {"INDEX_GAP", "INDEXGAP"}
-        or (modo in N0_KINDS and "mcc" in str(data.get("query", "")).lower())
+    respuesta = str(data.get("respuesta") or "")
+    n_heg = int(data.get("n_heg") or 0)
+    n_sit = int(data.get("n_sit") or 0)
+    cobertura = bool(data.get("cobertura_dual"))
+    arbol = bool(data.get("arbol_activo"))
+    tesis = str(first(data.get("tesis"), data.get("heg"), data.get("thesis"), "") or "")
+    antitesis = str(first(data.get("antitesis"), data.get("sit"), data.get("antithesis"), "") or "")
+    if not tesis and not antitesis and respuesta:
+        if n_heg and not n_sit:
+            tesis = respuesta
+        elif n_sit and not n_heg:
+            antitesis = respuesta
+        elif cobertura or arbol or (n_heg and n_sit):
+            tesis = respuesta
+            antitesis = respuesta
+        elif "SITUADO" in set(polos):
+            antitesis = respuesta
+        else:
+            tesis = respuesta
+
+    tension = str(first(data.get("tension"), data.get("tensión"), "") or "")
+    if not tension and (cobertura or arbol) and respuesta:
+        tension = respuesta
+
+    ausencia = first(
+        data.get("ausencia_polo"),
+        data.get("polo_ausente"),
+        data.get("lado_unico"),
     )
+    if not ausencia and (n_sit and not n_heg):
+        ausencia = "HEG_AUSENTE"
+    elif not ausencia and (n_heg and not n_sit):
+        ausencia = "SIT_AUSENTE"
+
+    texto = json.dumps(data, ensure_ascii=False)[:8000]
+    index_gap = bool(data.get("index_gap") or modo in {"INDEX_GAP", "INDEXGAP"})
     abstenido = bool(
         data.get("abstenido")
         or modo in N0_KINDS
-        or str(data.get("respuesta") or "").strip().lower() in {"no sé", "no se", "n0"}
+        or str(respuesta).strip().lower() in {"no sé", "no se", "n0"}
     )
+    # Respuesta grounded con fuentes no es N0 aunque decision use un alias raro.
+    if fuentes and respuesta.strip() and modo not in N0_KINDS:
+        abstenido = False
 
     return {
         "modo": modo,
-        "tesis": str(first(data.get("tesis"), data.get("heg"), data.get("thesis"), "") or ""),
-        "antitesis": str(
-            first(data.get("antitesis"), data.get("sit"), data.get("antithesis"), "") or ""
-        ),
-        "tension": str(first(data.get("tension"), data.get("tensión"), "") or ""),
+        "tesis": tesis,
+        "antitesis": antitesis,
+        "tension": tension,
         "preguntas": preguntas,
-        "hashes": sorted(set(h.lower() for h in hashes)),
+        "hashes": sorted(set(hashes)),
         "fuentes": fuentes,
         "polos": polos,
         "abstenido": abstenido,
         "index_gap": index_gap,
-        "ausencia_polo": first(data.get("ausencia_polo"), data.get("polo_ausente")),
+        "ausencia_polo": ausencia,
         "texto": texto,
         "n_fuentes": len(fuentes),
+        "n_heg": n_heg,
+        "n_sit": n_sit,
+        "cobertura_dual": cobertura,
+        "arbol_activo": arbol,
+        "respuesta": respuesta,
     }
 
 
@@ -556,10 +606,19 @@ def slots_mirror(ex: dict[str, Any], espera: str) -> dict[str, int]:
 
 
 def dual_density_query(ex: dict[str, Any]) -> float:
-    polos = set(ex["polos"])
+    if ex.get("cobertura_dual") or ex.get("arbol_activo"):
+        if (ex.get("n_heg") or 0) > 0 and (ex.get("n_sit") or 0) > 0:
+            return 1.0
+        polos = set(ex.get("polos") or [])
+        if "HEGEMONICO" in polos and "SITUADO" in polos:
+            return 1.0
+        # Flag dual sin ambos polos en fuentes: no inventar dualidad.
+    polos = set(ex.get("polos") or [])
     if "HEGEMONICO" in polos and "SITUADO" in polos:
         return 1.0
-    if ex["tesis"].strip() and ex["antitesis"].strip():
+    if (ex.get("n_heg") or 0) > 0 and (ex.get("n_sit") or 0) > 0:
+        return 1.0
+    if ex["tesis"].strip() and ex["antitesis"].strip() and ex["tesis"] != ex["antitesis"]:
         return 1.0
     return 0.0
 
@@ -627,6 +686,12 @@ def polo_mislabel(ex: dict[str, Any]) -> int:
 
 
 def is_n0(ex: dict[str, Any]) -> bool:
+    if ex["modo"] in MODO_ARBOL or ex["modo"] in MODO_MONO:
+        return False
+    if (ex.get("n_fuentes") or 0) > 0 and (
+        (ex.get("respuesta") or "").strip() or ex["tesis"].strip() or ex["antitesis"].strip()
+    ):
+        return False
     if ex["abstenido"] or ex["modo"] in N0_KINDS:
         return True
     if ex["n_fuentes"] == 0 and not ex["tesis"] and not ex["antitesis"]:
