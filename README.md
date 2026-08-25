@@ -18,6 +18,8 @@ Este git no hospeda el sistema vivo. El cierre se corre en `tektron@192.168.100.
 
 ## Única acción siguiente
 
+Comandos paso a paso (iMac → Jetson → Gate → acta o corrección): **`CORRER_EN_JETSON.md`**.
+
 ```bash
 /mnt/tektron/venv_tektron/bin/python3 gate_capacidad_g1_g10.py \
   --base-bridge http://127.0.0.1:8000 \

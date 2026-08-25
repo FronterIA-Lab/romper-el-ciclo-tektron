@@ -165,6 +165,8 @@ Orden. No se inventa otro.
 
 ### 5.1 Qué correr
 
+Comandos copy-paste, paso a paso: `CORRER_EN_JETSON.md`.
+
 En la Jetson, con el bridge y el backend vivos:
 
 ```bash
