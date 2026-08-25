@@ -1,0 +1,36 @@
+La Arquitectura Fija de TEKTRON (El Documento que Frena la Deriva)
+1. ¿Qué es TEKTRON? Un analista situado que aplica el MCC (Método de Calibración Contextual) para producir Árboles de Espejos (tesis hegemónica vs antítesis situada, en tensión SIN síntesis) sobre cualquier material (corpus propio o documentos del usuario), absteniéndose (N0) si el contexto es insuficiente.
+2. ¿Qué produce?
+* Si hay suficiente contexto y la estructura tiene ambos polos (HEG/SIT): Árbol de Espejos completo (TESIS vs ANTÍTESIS) + preguntas críticas del MCC + evidencia trazable (SHA-256).
+* Si hay suficiente contexto pero la estructura es mono-polo: Análisis del polo existente + declaración explícita de la ausencia del otro polo + preguntas críticas.
+* Si no hay suficiente contexto (N0): "No sé" + hash vacío. No confabula.
+3. ¿Con qué piezas?
+1. Corpus Base (Andamiaje): Conjunto curado de documentos estructurales (leyes, tratados, epistemologías, MCC) que NO se modifica por el usuario. Reside en index_l1.
+2. Memoria del Usuario (Externa): Documentos subidos (PDFs) y resultados de búsquedas web. Vive en memoria_usuario.json (SSD). NUNCA se integra al corpus base.
+3. MCC (Método): 4 capas (Descentramiento, Contexto Encarnado, Verificación Contra-Intuitiva, Resíntesis Autónoma) que extraen marcos, no soluciones.
+4. Abstención N0: Señal de "Contexto Suficiente" (umbral de similitud coseno) + lógica de cuadrantes DTA (si fuera de ambos, abstenerse).
+5. Frontend/Backend: tektron.html (interfaz) + tektron_backend.py (API).
+4. ¿Qué es cada polo?
+* HEG (Hegegemonico): Narrativa del poder establecido. Estado, corporaciones, derecho positivo, discurso oficial, ciencia hegemónica.
+* SIT (Situado): Conocimiento encarnado, comunitario, crítico. Cosmovisiones indígenas, epistemologías del Sur, testimonios de resistencia.
+* TÉCNICO (Técpatl): Exactitud. Código, matemáticas, normas industriales, manuales de PLC, protocolos (Modbus). No se relativiza. No tiene dualidad.
+5. ¿Qué entra en el corpus base y qué NO?
+* ENTRA (Andamiaje):
+    * Leyes, tratados, constituciones, marcos normativos.
+    * Epistemologías del Sur (Quijano, Santos, Rivera Cusicanqui, Dussel, Mignolo).
+    * Metodología MCC, conceptos de "Grieta Generativa", "Certeza sin Sustancia", "Soberanía Cognitiva".
+    * Casos documentados de extractivismo y resistencia territorial.
+    * Normas técnicas (NOMs, manuales de Siemens/Modbus) como conocimiento TÉCNICO.
+* NO ENTRA (FUERA):
+    * Memoria del usuario (PDFs subidos, búsquedas web).
+    * Basura de metadatos (cabeceras url:/title:, 404s).
+    * Enciclopedias genéricas sin estructura de disputa.
+    * Conocimiento no verificado (hash no validado).
+6. ¿Qué significa que TEKTRON esté CERRADO?
+* Fase 0 (Blindaje): snapshots, manifests SHA-256).
+* Fase 1 (Mapa Estructural): El mapa de lo que debe analizar está definido en este documento (los ítems del punto 5).
+* Fase 2 (Curación): El índice index_l1 ha sido filtrado contra el mapa anterior, eliminando FUERA.
+* Fase 3 (Índice): chunks funcionales.
+* Fase 4 (Gate): Verificado que el índice produce Árboles de Espejos (o abstención) para las estructuras del mapa.
+* Fase 5 (Interfaz Honesta): El backend aplica el MCC y devuelve análisis, no solo fragmentos.
+* Fase 6 (Acta): Swap firmado y documento que certifica las fases 0-5.
