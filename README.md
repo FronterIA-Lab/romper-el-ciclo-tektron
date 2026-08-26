@@ -10,9 +10,10 @@ N0 (abstención) es piso anti-confabulación, no meta. Un sistema que se calla s
 
 ## Empezá acá
 
-1. **`ESTRATEGIA_CIERRE_J.md`** — qué está pasando (el ciclo de siete meses), las dos fórmulas de J, el estado real, la única acción siguiente y el árbol de decisión después de medir.
-2. **`gate_capacidad_g1_g10.py`** — el medidor. Se copia a la Jetson y produce `resultados_gate_v8.json`. Sin ese JSON, J no tiene número y no hay cierre.
-3. **`La Arquitectura Fija de TEKTRON`** — qué es TEKTRON. No se reabre.
+1. **`PROTOCOLO_DESDE_AQUI.md`** — dónde estamos tras el Gate y cuál es la única corrección (FalseN0/G3).
+2. **`ESTRATEGIA_CIERRE_J.md`** — por qué J es un producto y por qué N0 no es la meta.
+3. **`gate_capacidad_g1_g10.py`** — el medidor. Se copia a la Jetson y produce `resultados_gate_v8.json`.
+4. **`La Arquitectura Fija de TEKTRON`** — qué es TEKTRON. No se reabre.
 
 Este git no hospeda el sistema vivo. El cierre se corre en `tektron@192.168.100.84:/mnt/tektron`.
 

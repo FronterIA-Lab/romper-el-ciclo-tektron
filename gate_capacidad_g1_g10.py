@@ -884,7 +884,16 @@ def next_action(agg: dict[str, Any]) -> str:
     if "EvidenceIntegrity" in b:
         return "SHA ausente o no vacío en N0. Arreglar evidencia_trazable."
     if "FalseN0" in b:
-        return "Calló en positiva. N0 es piso: bajar umbral o arreglar suficiencia. No subir abstención."
+        ids = agg.get("FalseN0") or []
+        if "G3" in ids:
+            return (
+                "FalseN0=G3 TEC: Siemens está en L1 (polo TECNICO) y /chat abstuvo. "
+                "Corregir retrieve/router para modo TEC — responder, no bajar umbral N0."
+            )
+        return (
+            "FalseN0: calló en positiva del mapa. Recuperar/responder ese polo. "
+            "No bajar umbral N0 (eso reabre G6–G8)."
+        )
     if "TrueN0" in b:
         return "Confabuló OOD (G6–G8). Selectividad solo en negativas."
     return "Releer por-query en el JSON. Una sola corrección. Re-medir."
