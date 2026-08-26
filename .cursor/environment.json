@@ -1,4 +1,4 @@
 {
   "name": "romper-el-ciclo-tektron",
-  "install": "python3 --version && python3 -m compileall -q gate_capacidad_g1_g10.py emitir_acta_cierre_v8.py tektron_auditar_instrumento_legal_v2.py"
+  "install": "python3 --version && python3 -m compileall -q ."
 }
