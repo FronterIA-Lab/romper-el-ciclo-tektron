@@ -59,7 +59,30 @@ Prohibido en este paso: curar corpus, ronda 3, `calibrar_n0`, bajar umbral, inde
 
 El `siguiente` del medidor que decía “bajar umbral” era un error del script (familia ERROR CONSTANTE). Quedó corregido: FalseN0/G3 = modo TEC, no umbral.
 
-## Sub-paso 2 (en curso, mismo G3): router corregido, generación de texto no
+## Cierre del Gate (26 ago, tercera corrida)
+
+Corrección G3 completa: `retrieve_l1.py::decidir()` responde TEC cuando solo hay `sel_tec` (antes caía a `ABSTENER`); `tektron_bridge_l1.py::llamar_llm` recibe `ctx_tec` y usa una rama de prompt "TEC exacto, sin dualidad" (antes el contexto técnico se perdía y salía el mensaje genérico de ausencia dialéctica).
+
+Gate re-corrido tras el parche:
+
+```
+G1  OK  ARBOL   HEG+SIT
+G2  OK  ARBOL   HEG+SIT
+G3  OK  MONO    TECNICO   (antes: ABSTENER, FalseN0)
+G4  OK  UN_SOLO_LADO  SITUADO (MCC grounded)
+G5  OK  UN_SOLO_LADO  SITUADO
+G6  OK  ABSTENER  (N0 limpio, sin ZIM)
+G7  OK  ABSTENER
+G8  OK  ABSTENER
+G9  OK  UN_SOLO_LADO  SITUADO (grieta generativa, grounded)
+G10 OK  ARBOL   HEG+SIT (trap Quijano, PoloMislabel=0)
+
+J=0.35  status=OK  bottleneck=[]
+```
+
+**Gate aprobado.** Siguiente y único paso: `emitir_acta_cierre_v8.py` con hashes reales de `chunks.jsonl` + `faiss.idx`. No reabrir curación, no tocar G5/DualPoleDensity — quedan documentados como frente de *maximización* posterior a C7, no como bloqueo del cierre.
+
+## Sub-paso 2 (histórico, ya resuelto): router corregido, generación de texto no
 
 Parche 1 en `retrieve_l1.py::decidir()`: dialéctica sin HEG/SIT pero con TEC → `_pack("MONO", "TECNICO", ...)` en vez de `ABSTENER`. Confirmado con restart + humo:
 
