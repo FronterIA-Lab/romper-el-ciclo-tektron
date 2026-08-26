@@ -18,9 +18,9 @@ J = MirrorCoverage × DualPoleDensity × TensionFaithfulness × EvidenceIntegrit
 
 Si un factor llega a 0, J llega a 0. Ningún factor compensa a otro. No se maximiza abstención, precisión corta, EM/F1 ni “error cero”. Un sistema que se calla siempre tiene error cero y valor cero.
 
-**Hoy no sabemos cuánto vale J.** El único instrumento que lo mide —la batería G1–G10 contra `/analizar` en vivo— nunca se corrió. Hay dos sondas manuales (Ley Minera, pozole). Eso no es el Gate.
+**Hoy J ya se midió** (0.35, 26 ago). Estado y única corrección vigente: `PROTOCOLO_DESDE_AQUI.md`. No reabrir “correr el Gate por primera vez”.
 
-**Única acción siguiente:** correr `gate_capacidad_g1_g10.py` en la Jetson (`tektron@192.168.100.84`), producir `resultados_gate_v8.json` con los cuatro factores y las constraints, y recién entonces decidir. Si el Gate aprueba → acta C7 → cerrado. Si falla → el JSON dice *qué* factor o constraint falló → una corrección puntual. Nada más.
+**Única acción siguiente** (tras el segundo Gate): FalseN0 = G3 TEC. Retrieve/router, no umbral N0. Luego re-medir. Si aprueba → acta C7.
 
 Este workspace **no puede** ejecutar el Gate: el sistema vivo no está aquí. Está en `/mnt/tektron`. Este repo entrega la estrategia y el medidor. El cierre se firma en el nodo.
 
