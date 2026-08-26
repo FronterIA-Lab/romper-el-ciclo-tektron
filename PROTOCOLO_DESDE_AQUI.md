@@ -58,3 +58,14 @@ Prohibido en este paso: curar corpus, ronda 3, `calibrar_n0`, bajar umbral, inde
 4. Si `status=FAIL` → leer `bottleneck` del JSON nuevo. Una corrección. Stop.
 
 El `siguiente` del medidor que decía “bajar umbral” era un error del script (familia ERROR CONSTANTE). Quedó corregido: FalseN0/G3 = modo TEC, no umbral.
+
+## Sub-paso 2 (en curso, mismo G3): router corregido, generación de texto no
+
+Parche 1 en `retrieve_l1.py::decidir()`: dialéctica sin HEG/SIT pero con TEC → `_pack("MONO", "TECNICO", ...)` en vez de `ABSTENER`. Confirmado con restart + humo:
+
+- `decision=MONO`, `n_fuentes=1`, `polos=['TECNICO']` — el router ya no aborta.
+- `respuesta="No tengo material situado/hegemónico suficiente sobre esto."` — **texto equivocado**, no responde con el chunk TEC recuperado.
+
+Causa probable: `_pack` no seteó `lado_unico` para la rama TEC nueva; el bridge decide el mensaje/prompt según `lado_unico` y cae al genérico de ausencia dialéctica en vez de usar `llamar_llm` con el contexto técnico.
+
+Sigue siendo la corrección G3, no un frente nuevo. Próximo: leer en `tektron_bridge_l1.py` cómo se arma la respuesta para `decision.kind == "MONO"` con `clase == "TECNICO"`, y ajustar ese único tramo para que use el chunk TEC recuperado.
