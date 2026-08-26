@@ -80,7 +80,24 @@ G10 OK  ARBOL   HEG+SIT (trap Quijano, PoloMislabel=0)
 J=0.35  status=OK  bottleneck=[]
 ```
 
-**Gate aprobado.** Siguiente y único paso: `emitir_acta_cierre_v8.py` con hashes reales de `chunks.jsonl` + `faiss.idx`. No reabrir curación, no tocar G5/DualPoleDensity — quedan documentados como frente de *maximización* posterior a C7, no como bloqueo del cierre.
+**Gate aprobado y acta firmada — TEKTRON CERRADO (2026-08-26).**
+
+```json
+{
+  "estado": "CERRADO",
+  "J": 0.35,
+  "MirrorCoverage": 0.7, "DualPoleDensity": 0.5,
+  "TensionFaithfulness": 1.0, "EvidenceIntegrity": 1.0,
+  "hash_chunks_jsonl": "fd73ea56a8f666eeb9c4a470ec300580c512cc92c1a700eba1e24eaca5168dfe",
+  "hash_faiss_idx": "0e86ed3c4a66d527009339f2ac80145e965abc8eb9eee674ae463a886838e2c5"
+}
+```
+
+Archivo: `/mnt/tektron/workspace/ACTA_CIERRE_TEKTRON_v8.json`. No reabrir curación, no tocar G5/DualPoleDensity como bloqueo — quedan como frente de *maximización* posterior a C7, no de cierre.
+
+## Después de C7 (opcional, no bloquea el cierre ya firmado)
+
+Si en el futuro se quiere subir J (hoy 0.35, techo por `DualPoleDensity=0.5`): la única ancla con hueco medido es G5 ("¿Quién descubrió América?", `MONO_SIT`, falta HEG real). Un par documental HEG en esa ancla, re-medir. Nada más se toca sin que un Gate nuevo lo nombre.
 
 ## Sub-paso 2 (histórico, ya resuelto): router corregido, generación de texto no
 
