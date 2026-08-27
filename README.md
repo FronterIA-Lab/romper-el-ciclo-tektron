@@ -10,16 +10,26 @@ N0 (abstención) es piso anti-confabulación, no meta. Un sistema que se calla s
 
 ## Empezá acá
 
-1. **`PROTOCOLO_DESDE_AQUI.md`** — dónde estamos tras el Gate y cuál es la única corrección (FalseN0/G3).
+0. **`MAPA_TEKTRON.md`** — el mapa completo: tesis invariante, evolución real
+   mar-ago 2026, estado actual (ya CERRADO desde el 26-ago), y qué hacer con
+   los diagnósticos nuevos que aparezcan sin volver a ciclar.
+1. **`PROTOCOLO_DESDE_AQUI.md`** — dónde estamos tras el Gate: aprobado, acta firmada.
 2. **`ESTRATEGIA_CIERRE_J.md`** — por qué J es un producto y por qué N0 no es la meta.
 3. **`gate_capacidad_g1_g10.py`** — el medidor. Se copia a la Jetson y produce `resultados_gate_v8.json`.
 4. **`La Arquitectura Fija de TEKTRON`** — qué es TEKTRON. No se reabre.
 
 Este git no hospeda el sistema vivo. El cierre se corre en `tektron@192.168.100.84:/mnt/tektron`.
 
-## Única acción siguiente
+## Estado: CERRADO (26-ago-2026)
 
-Comandos paso a paso (iMac → Jetson → Gate → acta o corrección): **`CORRER_EN_JETSON.md`**.
+El Gate ya se corrió y aprobó: `J=0.35`, `status=OK`, `bottleneck=[]`.
+`ACTA_CIERRE_TEKTRON_v8.json` está firmada con hashes reales. Ver
+`PROTOCOLO_DESDE_AQUI.md` §"Cierre del Gate" y `MAPA_TEKTRON.md` §4.
+
+Cualquier trabajo de aquí en adelante es **maximización**, no cierre: subir
+`J` por encima de 0.35 corrigiendo únicamente lo que un `resultados_gate_v8.json`
+nuevo, corrido contra el sistema vivo, nombre como bottleneck. Mismos comandos
+de siempre (**`CORRER_EN_JETSON.md`**):
 
 ```bash
 /mnt/tektron/venv_tektron/bin/python3 gate_capacidad_g1_g10.py \
@@ -28,7 +38,9 @@ Comandos paso a paso (iMac → Jetson → Gate → acta o corrección): **`CORRE
   --out resultados_gate_v8.json
 ```
 
-Si aprueba → acta C7. Si falla → el JSON nombra el factor o la constraint; una corrección puntual; re-medir. Nada de ronda 3 de curación, nada de protocolo v9, nada de esperar a `calibrar_n0.py` en el repo.
+Si el JSON nombra un factor o constraint → una corrección puntual → re-medir.
+Ningún documento de diagnóstico nuevo (de esta sesión o de otra) autoriza tocar
+algo que el Gate no haya nombrado.
 
 ## Qué no leer como plan
 
