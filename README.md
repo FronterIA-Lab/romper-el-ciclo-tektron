@@ -11,8 +11,13 @@ N0 (abstención) es piso anti-confabulación, no meta. Un sistema que se calla s
 ## Empezá acá
 
 0. **`MAPA_TEKTRON.md`** — el mapa completo: tesis invariante, evolución real
-   mar-ago 2026, estado actual (ya CERRADO desde el 26-ago), y qué hacer con
+   mar-ago 2026, estado actual (Gate aprobado desde el 26-ago), y qué hacer con
    los diagnósticos nuevos que aparezcan sin volver a ciclar.
+0.1. **`ARQUITECTURA_IDEAL_TEKTRON.md`** — el Gate aprobado (`J=0.35`) es un piso
+   mecánico, no el objetivo. Acá está la ruta real hacia una herramienta
+   valiosa y empaquetada (backend con literatura RAG aplicada + frontend/HTML
+   completo + instalación reproducible), sin reabrir arquitectura sin que un
+   Gate lo nombre.
 1. **`PROTOCOLO_DESDE_AQUI.md`** — dónde estamos tras el Gate: aprobado, acta firmada.
 2. **`ESTRATEGIA_CIERRE_J.md`** — por qué J es un producto y por qué N0 no es la meta.
 3. **`gate_capacidad_g1_g10.py`** — el medidor. Se copia a la Jetson y produce `resultados_gate_v8.json`.
@@ -20,16 +25,21 @@ N0 (abstención) es piso anti-confabulación, no meta. Un sistema que se calla s
 
 Este git no hospeda el sistema vivo. El cierre se corre en `tektron@192.168.100.84:/mnt/tektron`.
 
-## Estado: CERRADO (26-ago-2026)
+## Estado: Gate aprobado (26-ago-2026), empaquetado NO terminado
 
 El Gate ya se corrió y aprobó: `J=0.35`, `status=OK`, `bottleneck=[]`.
 `ACTA_CIERRE_TEKTRON_v8.json` está firmada con hashes reales. Ver
 `PROTOCOLO_DESDE_AQUI.md` §"Cierre del Gate" y `MAPA_TEKTRON.md` §4.
 
-Cualquier trabajo de aquí en adelante es **maximización**, no cierre: subir
-`J` por encima de 0.35 corrigiendo únicamente lo que un `resultados_gate_v8.json`
-nuevo, corrido contra el sistema vivo, nombre como bottleneck. Mismos comandos
-de siempre (**`CORRER_EN_JETSON.md`**):
+Eso es un piso mecánico (no confabula), no la meta. La meta —una herramienta
+realmente valiosa y empaquetada hasta el HTML— sigue abierta: ver
+`ARQUITECTURA_IDEAL_TEKTRON.md` para la ruta priorizada (retrieval/reranking
+con literatura RAG aplicada, decisión del frontend, instalación reproducible).
+
+El trabajo de aquí en adelante sube `J` y cierra el empaquetado corrigiendo
+únicamente lo que un `resultados_gate_v8.json` nuevo, corrido contra el sistema
+vivo, nombre como bottleneck — más las fases de `ARQUITECTURA_IDEAL_TEKTRON.md`.
+Mismos comandos de siempre (**`CORRER_EN_JETSON.md`**):
 
 ```bash
 /mnt/tektron/venv_tektron/bin/python3 gate_capacidad_g1_g10.py \
